@@ -3,7 +3,6 @@
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
-import { useCart } from "@/hooks/useCart";
 import { apiFetchJson } from "@/lib/client/api";
 import { formatPaperbaseError, stockValidationErrors } from "@/lib/api/paperbase-errors";
 import { Link } from "@/i18n/routing";
@@ -31,7 +30,6 @@ type CheckoutDraft = {
 
 export function CheckoutPaymentStub() {
   const t = useTranslations("checkout");
-  const { openCartPanel } = useCart();
   const [draft, setDraft] = useState<CheckoutDraft | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
@@ -78,7 +76,7 @@ export function CheckoutPaymentStub() {
 
   return (
     <div className="bg-white pb-12 pt-6 md:pb-16 md:pt-8">
-      <CheckoutBreadcrumbs step="payment" onOpenCart={openCartPanel} />
+      <CheckoutBreadcrumbs step="payment" />
 
       <div className="mx-auto max-w-lg rounded-lg border border-neutral-200/60 bg-white p-8 shadow-sm md:p-10">
         {orderNumber ? (

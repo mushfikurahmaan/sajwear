@@ -181,10 +181,13 @@ export default async function ProductDetailPage({ params }: PageProps) {
                 {/* Variant picker + buy section */}
                 <ProductDetailBuySection
                   productPublicId={product.public_id}
+                  productSlug={product.slug}
                   productName={productName}
                   unitPrice={unitPrice}
                   imageUrl={product.image_url}
                   stockStatus={product.stock_status}
+                  stockTracking={product.stock_tracking}
+                  availableQuantity={product.available_quantity}
                 />
               </VariantSelectionProvider>
 

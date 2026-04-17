@@ -11,23 +11,29 @@ import { cn } from "@/lib/utils";
 
 type ProductDetailBuySectionProps = {
   productPublicId: string;
+  productSlug: string;
   productName: string;
   unitPrice: string;
   imageUrl: string | null;
   stockStatus: "in_stock" | "low_stock" | "out_of_stock";
+  stockTracking: boolean;
+  availableQuantity: number;
 };
 
 export function ProductDetailBuySection({
   productPublicId,
+  productSlug,
   productName,
   unitPrice,
   imageUrl,
   stockStatus,
+  stockTracking,
+  availableQuantity,
 }: ProductDetailBuySectionProps) {
   const t = useTranslations("product");
   const tDetail = useTranslations("productDetail");
   const locale = useLocale() as "en" | "bn";
-  const { addItem, openCartPanel } = useCart();
+  const { addItem, openCartPanel, startBuyNow } = useCart();
   const router = useRouter();
   const { variants, selectedValues, setSelectedValue, selectedVariant, optionsByAttribute } =
     useVariantSelection();
@@ -39,16 +45,28 @@ export function ProductDetailBuySection({
   const variantResolved = variants.length === 0 || selectedVariant != null;
   const canPurchase = inStock && variantResolved;
 
-  const payload = () => ({
-    product_public_id: productPublicId,
-    variant_public_id: selectedVariant?.public_id,
-    name: productName,
-    price: effectivePrice,
-    image_url: imageUrl,
-    variant_details: selectedVariant
-      ? selectedVariant.options.map((opt) => `${opt.attribute_name}: ${opt.value}`).join(", ")
-      : undefined,
-  });
+  const payload = () => {
+    const maxQuantity = !stockTracking
+      ? undefined
+      : selectedVariant != null
+        ? selectedVariant.available_quantity
+        : variants.length === 0
+          ? availableQuantity
+          : undefined;
+
+    return {
+      product_public_id: productPublicId,
+      product_slug: productSlug,
+      variant_public_id: selectedVariant?.public_id,
+      name: productName,
+      price: effectivePrice,
+      image_url: imageUrl,
+      max_quantity: maxQuantity,
+      variant_details: selectedVariant
+        ? selectedVariant.options.map((opt) => `${opt.attribute_name}: ${opt.value}`).join(", ")
+        : undefined,
+    };
+  };
 
   const handleAdd = () => {
     if (!canPurchase) return;
@@ -58,7 +76,9 @@ export function ProductDetailBuySection({
 
   function handleOrderNow() {
     if (!canPurchase) return;
-    addItem(payload(), 1);
+    // Clone current cart + merge this item into a temporary Buy Now map.
+    // The main cart is NOT mutated — checkout reads from buyNowMap instead.
+    startBuyNow(payload(), 1);
     router.push("/checkout");
   }
 

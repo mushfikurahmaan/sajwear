@@ -28,9 +28,11 @@ export function ProductCardAddButton({ product, productName, variant = "default"
       onClick={() =>
         addItem({
           product_public_id: product.public_id,
+          product_slug: product.slug,
           name: productName,
           price: product.price,
           image_url: product.image_url,
+          max_quantity: product.available_quantity,
         })
       }
       className={cn(

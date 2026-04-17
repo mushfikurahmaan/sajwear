@@ -36,7 +36,8 @@ export function ProductDetailSkuRow() {
 
   return (
     <p className="mt-2 text-xs text-neutral-400">
-      {tDetail("skuLabel")} <span className="font-mono text-neutral-600">{skuDisplay.sku}</span>
+      {tDetail("skuLabel")}{" "}
+      <span className="tabular-nums text-neutral-600">{skuDisplay.sku}</span>
     </p>
   );
 }

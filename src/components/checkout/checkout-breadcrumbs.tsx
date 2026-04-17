@@ -1,50 +1,28 @@
 "use client";
 
+import { ChevronLeft } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Link } from "@/i18n/routing";
 
 type CheckoutBreadcrumbsProps = {
   step: "shipping" | "payment";
-  onOpenCart: () => void;
 };
 
-export function CheckoutBreadcrumbs({ step, onOpenCart }: CheckoutBreadcrumbsProps) {
+export function CheckoutBreadcrumbs({ step }: CheckoutBreadcrumbsProps) {
   const t = useTranslations("checkout");
 
-  const sep = <span className="text-neutral-400">/</span>;
+  const backHref = step === "payment" ? "/checkout" : "/";
 
   return (
-    <nav
-      aria-label="Checkout progress"
-      className="mb-8 flex min-w-0 max-w-full flex-wrap items-center gap-2 text-sm"
-    >
-      <button
-        type="button"
-        onClick={onOpenCart}
-        className="text-neutral-600 underline-offset-2 hover:text-text hover:underline"
+    <nav aria-label={t("back")} className="mb-8 flex min-w-0 max-w-full items-center">
+      <Link
+        href={backHref}
+        className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-50"
       >
-        {t("breadcrumbCart")}
-      </button>
-      {sep}
-      {step === "shipping" ? (
-        <span className="font-semibold text-text">{t("breadcrumbShipping")}</span>
-      ) : (
-        <Link href="/checkout" className="text-neutral-600 underline-offset-2 hover:text-text hover:underline">
-          {t("breadcrumbShipping")}
-        </Link>
-      )}
-      {sep}
-      {step === "payment" ? (
-        <span className="font-semibold text-text">{t("breadcrumbPayment")}</span>
-      ) : (
-        <Link
-          href="/checkout/payment"
-          className="text-neutral-600 underline-offset-2 hover:text-text hover:underline"
-        >
-          {t("breadcrumbPayment")}
-        </Link>
-      )}
+        <ChevronLeft className="size-4 shrink-0" strokeWidth={2} aria-hidden />
+        {t("back")}
+      </Link>
     </nav>
   );
 }
