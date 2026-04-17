@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 
 import type { ProductVariant } from "@/types/product";
 
@@ -29,12 +21,35 @@ const VariantSelectionContext = createContext<VariantSelectionContextValue | nul
 
 export function VariantSelectionProvider({
   variants,
+  initialVariantPublicId,
   children,
 }: {
   variants: ProductVariant[];
+  /** Seed attribute selection from a known SKU (e.g. cart line on checkout). */
+  initialVariantPublicId?: string | null;
   children: ReactNode;
 }) {
-  const [selectedValues, setSelectedValues] = useState<Record<string, string>>({});
+  const derivedInitial = useMemo((): Record<string, string> => {
+    if (variants.length === 1) {
+      const initial: Record<string, string> = {};
+      for (const opt of variants[0].options) {
+        initial[opt.attribute_slug] = opt.value_public_id;
+      }
+      return initial;
+    }
+    if (initialVariantPublicId) {
+      const match = variants.find((v) => v.public_id === initialVariantPublicId);
+      if (!match) return {};
+      const initial: Record<string, string> = {};
+      for (const opt of match.options) {
+        initial[opt.attribute_slug] = opt.value_public_id;
+      }
+      return initial;
+    }
+    return {};
+  }, [variants, initialVariantPublicId]);
+
+  const [selectedValues, setSelectedValues] = useState(derivedInitial);
 
   const optionsByAttribute = useMemo((): OptionsByAttribute => {
     const grouped: OptionsByAttribute = new Map();
@@ -64,15 +79,6 @@ export function VariantSelectionProvider({
       variant.options.every((option) => selectedValues[option.attribute_slug] === option.value_public_id),
     );
   }, [selectedValues, variants]);
-
-  useEffect(() => {
-    if (variants.length !== 1) return;
-    const initial: Record<string, string> = {};
-    for (const opt of variants[0].options) {
-      initial[opt.attribute_slug] = opt.value_public_id;
-    }
-    setSelectedValues(initial);
-  }, [variants]);
 
   const setSelectedValue = useCallback((slug: string, valuePublicId: string) => {
     setSelectedValues((prev) => ({ ...prev, [slug]: valuePublicId }));

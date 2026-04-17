@@ -1,5 +1,7 @@
 export type CartItem = {
   product_public_id: string;
+  /** Stable React / UI identity for a cart line; preserved when the variant changes on checkout. */
+  line_key?: string;
   /** URL segment for `/products/[slug]`; omitted in older persisted carts */
   product_slug?: string;
   variant_public_id?: string;

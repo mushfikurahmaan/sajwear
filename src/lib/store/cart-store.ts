@@ -31,6 +31,16 @@ type CartState = {
    */
   startBuyNow: (item: Omit<CartItem, "quantity">, quantity?: number) => void;
   clearBuyNow: () => void;
+  /**
+   * Updates an existing line to a new variant (or refreshes fields) without changing
+   * the logical line when the variant id is unchanged. When the variant id changes,
+   * the line is moved to a new map key and quantity is clamped to the new max.
+   */
+  updateItemVariant: (
+    productPublicId: string,
+    oldVariantPublicId: string | undefined,
+    updates: Omit<CartItem, "quantity">,
+  ) => void;
 };
 
 export function getItemKey(productPublicId: string, variantPublicId?: string) {
@@ -45,6 +55,28 @@ function persistMap(map: CartMap) {
 function clampToMax(quantity: number, maxQuantity?: number) {
   if (maxQuantity == null || !Number.isFinite(maxQuantity)) return quantity;
   return Math.min(quantity, Math.max(0, maxQuantity));
+}
+
+function newLineKey(): string {
+  try {
+    return globalThis.crypto.randomUUID();
+  } catch {
+    return `lk_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+  }
+}
+
+function assignMissingLineKeys(map: CartMap): { map: CartMap; changed: boolean } {
+  let changed = false;
+  const next: CartMap = { ...map };
+  for (const key of Object.keys(next)) {
+    const item = next[key];
+    if (!item) continue;
+    if (!item.line_key) {
+      next[key] = { ...item, line_key: newLineKey() };
+      changed = true;
+    }
+  }
+  return { map: next, changed };
 }
 
 /**
@@ -92,6 +124,7 @@ function mergeItemIntoMap(
       ...map,
       [key]: {
         ...existing,
+        line_key: existing.line_key ?? item.line_key ?? newLineKey(),
         quantity: clampToMax(existing.quantity + safeQty, maxQ),
         max_quantity: maxQ ?? existing.max_quantity,
         product_slug: item.product_slug ?? existing.product_slug,
@@ -109,6 +142,7 @@ function mergeItemIntoMap(
     ...map,
     [key]: {
       ...item,
+      line_key: item.line_key ?? newLineKey(),
       quantity: clampToMax(safeQty, maxQ),
       max_quantity: maxQ,
     },
@@ -125,8 +159,10 @@ export const useCartStore = create<CartState>((set, get) => ({
   closeCartPanel: () => set({ cartPanelOpen: false }),
 
   hydrateCart: () => {
-    const itemsMap = loadMapFromStorage();
-    set({ itemsMap, hydrated: true });
+    const loaded = loadMapFromStorage();
+    const { map, changed } = assignMissingLineKeys(loaded);
+    if (changed) persistMap(map);
+    set({ itemsMap: map, hydrated: true });
   },
 
   addItem: (item, quantity = 1) => {
@@ -175,8 +211,44 @@ export const useCartStore = create<CartState>((set, get) => ({
 
   startBuyNow: (item, quantity = 1) => {
     const merged = mergeItemIntoMap(get().itemsMap, item, quantity);
-    set({ buyNowMap: merged });
+    const { map } = assignMissingLineKeys(merged);
+    set({ buyNowMap: map });
   },
 
   clearBuyNow: () => set({ buyNowMap: null }),
+
+  updateItemVariant: (productPublicId, oldVariantPublicId, updates) => {
+    const state = get();
+    const isBuyNow = state.buyNowMap != null;
+    const sourceMap = isBuyNow ? state.buyNowMap! : state.itemsMap;
+    const oldKey = getItemKey(productPublicId, oldVariantPublicId);
+    const existing = sourceMap[oldKey];
+    if (!existing) return;
+
+    const newKey = getItemKey(productPublicId, updates.variant_public_id);
+    const merged: CartItem = {
+      ...existing,
+      ...updates,
+      quantity: existing.quantity,
+    };
+    const clampedQty = clampToMax(merged.quantity, merged.max_quantity);
+    const nextItem: CartItem = { ...merged, quantity: clampedQty };
+
+    let nextMap: CartMap;
+    if (newKey === oldKey) {
+      nextMap = { ...sourceMap, [oldKey]: nextItem };
+    } else {
+      const rest = { ...sourceMap };
+      delete rest[oldKey];
+      const { quantity: qty, ...payload } = nextItem;
+      nextMap = mergeItemIntoMap(rest, payload, qty);
+    }
+
+    if (isBuyNow) {
+      set({ buyNowMap: nextMap });
+    } else {
+      persistMap(nextMap);
+      set({ itemsMap: nextMap });
+    }
+  },
 }));

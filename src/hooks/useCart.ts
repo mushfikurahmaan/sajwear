@@ -19,6 +19,7 @@ export function useCart() {
   const openCartPanel = useCartStore((state) => state.openCartPanel);
   const startBuyNow = useCartStore((state) => state.startBuyNow);
   const clearBuyNow = useCartStore((state) => state.clearBuyNow);
+  const updateItemVariant = useCartStore((state) => state.updateItemVariant);
 
   useEffect(() => {
     if (!hydrated) {
@@ -74,5 +75,6 @@ export function useCart() {
     openCartPanel,
     startBuyNow,
     clearBuyNow,
+    updateItemVariant,
   };
 }

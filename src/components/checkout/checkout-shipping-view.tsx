@@ -2,14 +2,13 @@
 
 import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useCart } from "@/hooks/useCart";
 import { apiFetchJson } from "@/lib/client/api";
 import { formatMoney, parseDecimal } from "@/lib/format";
 import { resolveStorefrontImageUrl, storefrontImageUnoptimized } from "@/lib/storefront-image";
 import { triggerInitiateCheckout } from "@/lib/tracker";
-import { parseVariantAttributePairs } from "@/lib/variant-details";
 import { cn } from "@/lib/utils";
 import { Link, useRouter, type Locale } from "@/i18n/routing";
 import type { PaperbaseShippingOption, PaperbaseShippingZone } from "@/types/paperbase";
@@ -17,6 +16,7 @@ import type { PaperbaseShippingOption, PaperbaseShippingZone } from "@/types/pap
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
 
 import { CheckoutBreadcrumbs } from "./checkout-breadcrumbs";
+import { CheckoutLineVariants } from "./checkout-line-variants";
 
 const CHECKOUT_DRAFT_STORAGE_KEY = "paperbase-checkout-draft";
 
@@ -47,9 +47,6 @@ export function CheckoutShippingView() {
     useCart();
   const [zones, setZones] = useState<Array<{ zone_public_id: string; name: string }>>([]);
   const [selectedZone, setSelectedZone] = useState("");
-  const [methods, setMethods] = useState<
-    Array<{ method_public_id: string; method_name: string; price: string; estimated?: string }>
-  >([]);
   const [selectedMethod, setSelectedMethod] = useState("");
   const [shippingCost, setShippingCost] = useState("0.00");
   const [finalTotal, setFinalTotal] = useState("0.00");
@@ -113,16 +110,11 @@ export function CheckoutShippingView() {
           `/checkout/shipping/options?zone_public_id=${encodeURIComponent(selectedZone)}`,
         );
         if (!mounted) return;
-        const mapped = options.map((option) => ({
-          method_public_id: option.method_public_id,
-          method_name: option.method_name,
-          price: option.price,
-        }));
-        setMethods(mapped);
-        setSelectedMethod((current) => current || mapped[0]?.method_public_id || "");
+        const firstId = options[0]?.method_public_id ?? "";
+        setSelectedMethod(firstId);
       } catch {
         if (!mounted) return;
-        setErrorText("Failed to load shipping methods.");
+        setErrorText("Failed to load shipping for this zone.");
       } finally {
         if (mounted) setLoading(false);
       }
@@ -133,35 +125,47 @@ export function CheckoutShippingView() {
     };
   }, [selectedZone]);
 
+  const cartItemsRef = useRef(cartItems);
+  cartItemsRef.current = cartItems;
+  const selectedMethodRef = useRef(selectedMethod);
+  selectedMethodRef.current = selectedMethod;
+  const selectedZoneRef = useRef(selectedZone);
+  selectedZoneRef.current = selectedZone;
+
   useEffect(() => {
     let mounted = true;
-    async function loadPricing() {
-      if (!cartItems.length || !selectedZone) {
+    const tid = window.setTimeout(() => {
+      const items = cartItemsRef.current;
+      const zone = selectedZoneRef.current;
+      const method = selectedMethodRef.current;
+      if (!items.length || !zone) {
         return;
       }
-      try {
-        const response = await apiFetchJson<{
-          shipping_cost: string;
-          final_total: string;
-        }>("/checkout/initiate", {
-          method: "POST",
-          body: JSON.stringify({
-            items: cartItems,
-            shipping_zone_public_id: selectedZone || undefined,
-            shipping_method_public_id: selectedMethod || undefined,
-          }),
-        });
-        if (!mounted) return;
-        setShippingCost(response.shipping_cost);
-        setFinalTotal(response.final_total);
-      } catch {
-        if (!mounted) return;
-        setErrorText("Failed to calculate pricing.");
-      }
-    }
-    loadPricing();
+      void (async () => {
+        try {
+          const response = await apiFetchJson<{
+            shipping_cost: string;
+            final_total: string;
+          }>("/checkout/initiate", {
+            method: "POST",
+            body: JSON.stringify({
+              items,
+              shipping_zone_public_id: zone || undefined,
+              shipping_method_public_id: method || undefined,
+            }),
+          });
+          if (!mounted) return;
+          setShippingCost(response.shipping_cost);
+          setFinalTotal(response.final_total);
+        } catch {
+          if (!mounted) return;
+          setErrorText("Failed to calculate pricing.");
+        }
+      })();
+    }, 320);
     return () => {
       mounted = false;
+      window.clearTimeout(tid);
     };
   }, [cartItems, selectedMethod, selectedZone]);
 
@@ -180,7 +184,9 @@ export function CheckoutShippingView() {
       formData.get("lastName") || "",
     ).trim()}`.trim();
     const phone = String(formData.get("phone") || "").trim();
-    const shipping_address = String(formData.get("shippingAddress") || "").trim();
+    const addressLine = String(formData.get("shippingAddress") || "").trim();
+    const thana = String(formData.get("thana") || "").trim();
+    const shipping_address = [addressLine, thana].filter(Boolean).join(", ");
     const email = String(formData.get("email") || "").trim();
     const district = String(formData.get("district") || "").trim();
 
@@ -220,13 +226,29 @@ export function CheckoutShippingView() {
     );
   }
 
-  const selectedMethodObject = methods.find((method) => method.method_public_id === selectedMethod);
-  const displayShipping = selectedMethodObject ? selectedMethodObject.price : shippingCost;
-
   const inputClass =
     "w-full rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900 outline-none placeholder:text-neutral-400 focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/10";
 
   const shellCard = "rounded-lg border border-neutral-200 bg-white shadow-sm";
+
+  const orderTotalRows = (
+    <>
+      <div className="flex items-baseline justify-between gap-4">
+        <dt className="font-normal text-neutral-500">{t("subtotal")}</dt>
+        <dd className="price-display-summary shrink-0 text-end">{formatMoney(checkoutSubtotal, locale)}</dd>
+      </div>
+      <div className="flex items-baseline justify-between gap-4">
+        <dt className="font-normal text-neutral-500">{t("shippingLine")}</dt>
+        <dd className="price-display-summary shrink-0 text-end">{formatMoney(shippingCost, locale)}</dd>
+      </div>
+      <div className="flex items-baseline justify-between gap-4 border-t border-neutral-200 pt-3">
+        <dt className="text-sm font-normal text-neutral-700">{t("total")}</dt>
+        <dd className="price-display-total shrink-0 text-end leading-none !text-primary">
+          {formatMoney(finalTotal, locale)}
+        </dd>
+      </div>
+    </>
+  );
 
   return (
     <div className="min-w-0 max-w-full pb-12 pt-6 md:pb-16 md:pt-8">
@@ -234,21 +256,28 @@ export function CheckoutShippingView() {
 
       <form
         onSubmit={handleSubmit}
-        className="mx-auto grid w-full min-w-0 max-w-5xl gap-6 lg:grid-cols-2 lg:items-start lg:gap-8"
+        className="mx-auto grid w-full min-w-0 max-w-5xl gap-6 lg:grid-cols-2 lg:items-stretch lg:gap-8"
       >
-        <aside className={`min-w-0 ${shellCard} p-5 sm:p-6`}>
-          <h2 className="text-lg font-semibold tracking-tight text-neutral-950">{t("orderSummary")}</h2>
+        <div className="lg:relative">
+          <aside
+            className={cn(
+              "flex min-h-0 min-w-0 flex-col",
+              shellCard,
+              "p-5 sm:p-6",
+              "lg:absolute lg:inset-0 lg:overflow-hidden",
+            )}
+          >
+          <h2 className="shrink-0 text-lg font-semibold tracking-tight text-neutral-950">{t("orderSummary")}</h2>
 
-          <ul className="mt-5 space-y-4">
+          <ul className="checkout-summary-scroll mt-5 space-y-4 max-lg:max-h-[60vh] max-lg:overflow-y-auto max-lg:pr-1 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
             {checkoutItems.map((item) => {
-              const variantPairs = parseVariantAttributePairs(item.variant_details);
               const productHref = item.product_slug ? (`/products/${item.product_slug}` as const) : null;
               const imageSrc = resolveStorefrontImageUrl(item.image_url);
               // In Buy Now mode quantities are fixed; remove button is also hidden
               const showRemoveLine = !isBuyNow && checkoutItems.length > 1;
               return (
                 <li
-                  key={`${item.product_public_id}-${item.variant_public_id ?? "default"}`}
+                  key={item.line_key ?? `${item.product_public_id}-${item.variant_public_id ?? "default"}`}
                   className="rounded-lg border border-neutral-200 bg-white p-4"
                 >
                   <div className="flex gap-2 sm:gap-3">
@@ -275,22 +304,7 @@ export function CheckoutShippingView() {
                       ) : (
                         <p className="text-sm font-light leading-snug text-neutral-900">{item.name}</p>
                       )}
-                      {variantPairs.length > 0 ? (
-                        <div className="mt-3 flex flex-wrap gap-3">
-                          {variantPairs.map((pair, idx) => (
-                            <div key={`${pair.label}-${pair.value}-${idx}`} className="min-w-0">
-                              {pair.label ? (
-                                <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">
-                                  {pair.label}
-                                </p>
-                              ) : null}
-                              <span className="mt-1 inline-flex rounded bg-neutral-950 px-2.5 py-1 text-xs font-medium text-white">
-                                {pair.value}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : null}
+                      <CheckoutLineVariants item={item} />
                       <p className="mt-3 text-xs font-normal text-neutral-500">
                         <span className="price-display-line">{formatMoney(item.price, locale)}</span>{" "}
                         <span>{t("each")}</span>
@@ -343,26 +357,19 @@ export function CheckoutShippingView() {
             })}
           </ul>
 
-          <dl className="mt-6 space-y-2.5 border-t border-neutral-200 pt-5 text-sm">
-            <div className="flex items-baseline justify-between gap-4">
-              <dt className="font-normal text-neutral-500">{t("subtotal")}</dt>
-              <dd className="price-display-summary shrink-0 text-end">{formatMoney(checkoutSubtotal, locale)}</dd>
-            </div>
-            <div className="flex items-baseline justify-between gap-4">
-              <dt className="font-normal text-neutral-500">{t("shippingLine")}</dt>
-              <dd className="price-display-summary shrink-0 text-end">{formatMoney(displayShipping, locale)}</dd>
-            </div>
-            <div className="flex items-baseline justify-between gap-4 border-t border-neutral-200 pt-3">
-              <dt className="text-sm font-normal text-neutral-700">{t("total")}</dt>
-              <dd className="price-display-total shrink-0 text-end leading-none !text-primary">
-                {formatMoney(finalTotal, locale)}
-              </dd>
-            </div>
+          <dl
+            className={cn(
+              "mt-6 shrink-0 space-y-2.5 border-t border-neutral-200 pt-5 text-sm",
+              "max-lg:hidden",
+            )}
+          >
+            {orderTotalRows}
           </dl>
-        </aside>
+          </aside>
+        </div>
 
-        <div className="min-w-0 space-y-6">
-          <section className={`${shellCard} p-5 sm:p-6`}>
+        <div className="flex min-h-0 min-w-0 flex-col gap-6 lg:h-full">
+          <section className={cn("shrink-0", shellCard, "p-5 sm:p-6")}>
             <h1 className="text-lg font-semibold tracking-tight text-neutral-950">{t("customerInfoTitle")}</h1>
             <div className="mt-6 grid gap-5">
               <div className="grid gap-5 sm:grid-cols-2">
@@ -435,20 +442,20 @@ export function CheckoutShippingView() {
               <div className="grid gap-5 sm:grid-cols-2">
                 <label className="grid gap-2">
                   <span className="text-sm font-medium text-neutral-950">
-                    {t("city")}
+                    {t("thana")}
                     <span className="text-red-600"> *</span>
                   </span>
                   <input
                     className={inputClass}
-                    name="city"
+                    name="thana"
                     required
-                    autoComplete="address-level2"
-                    placeholder={t("cityPlaceholder")}
+                    autoComplete="address-line2"
+                    placeholder={t("thanaPlaceholder")}
                   />
                 </label>
                 <label className="grid gap-2">
                   <span className="text-sm font-medium text-neutral-950">
-                    {t("state")}
+                    {t("district")}
                     <span className="text-red-600"> *</span>
                   </span>
                   <input
@@ -476,78 +483,57 @@ export function CheckoutShippingView() {
             </div>
           </section>
 
-          <section className={`${shellCard} p-5 sm:p-6`}>
-            <h2 className="text-base font-semibold text-neutral-950">{t("shippingZone")}</h2>
-            <fieldset className="mt-4 grid gap-3">
-              <legend className="sr-only">{t("shippingZone")}</legend>
-              {zones.map((zone) => {
-                const selected = selectedZone === zone.zone_public_id;
-                return (
-                  <label
-                    key={zone.zone_public_id}
-                    className={cn(
-                      "flex cursor-pointer items-center gap-3 rounded-lg border p-4 transition-colors",
-                      selected
-                        ? "border-neutral-950 bg-white ring-1 ring-neutral-950"
-                        : "border-neutral-200 bg-white hover:border-neutral-300",
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name="shippingZonePick"
-                      value={zone.zone_public_id}
-                      checked={selected}
-                      onChange={() => setSelectedZone(zone.zone_public_id)}
-                      className="size-4 shrink-0 accent-blue-600"
-                    />
-                    <span className="text-sm font-medium text-neutral-950">{zone.name}</span>
-                  </label>
-                );
-              })}
-            </fieldset>
-          </section>
+          <div className="flex min-h-0 flex-col gap-6 lg:flex-1 lg:justify-end">
+            <section className={cn(shellCard, "p-5 sm:p-6")}>
+              <h2 className="text-base font-semibold text-neutral-950">{t("shippingZone")}</h2>
+              <fieldset className="mt-4 grid gap-3">
+                <legend className="sr-only">{t("shippingZone")}</legend>
+                {zones.map((zone) => {
+                  const selected = selectedZone === zone.zone_public_id;
+                  return (
+                    <label
+                      key={zone.zone_public_id}
+                      className={cn(
+                        "flex cursor-pointer items-center gap-3 rounded-lg border p-4 transition-colors",
+                        selected
+                          ? "border-neutral-950 bg-white ring-1 ring-neutral-950"
+                          : "border-neutral-200 bg-white hover:border-neutral-300",
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        name="shippingZonePick"
+                        value={zone.zone_public_id}
+                        checked={selected}
+                        onChange={() => setSelectedZone(zone.zone_public_id)}
+                        className="size-4 shrink-0 accent-blue-600"
+                      />
+                      <span className="text-sm font-medium text-neutral-950">{zone.name}</span>
+                    </label>
+                  );
+                })}
+              </fieldset>
+            </section>
 
-          <section className={`${shellCard} p-5 sm:p-6`}>
-            <h2 className="text-base font-semibold text-neutral-950">{t("shippingMethod")}</h2>
-            <fieldset className="mt-4 grid min-w-0 gap-3">
-              <legend className="sr-only">{t("shippingMethod")}</legend>
-              {methods.map((opt) => {
-                const selected = selectedMethod === opt.method_public_id;
-                return (
-                  <label
-                    key={opt.method_public_id}
-                    className={cn(
-                      "flex min-w-0 cursor-pointer items-center gap-3 rounded-lg border p-4 transition-colors",
-                      selected
-                        ? "border-neutral-950 bg-white ring-1 ring-neutral-950"
-                        : "border-neutral-200 bg-white hover:border-neutral-300",
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name="shippingMethod"
-                      value={opt.method_public_id}
-                      checked={selected}
-                      onChange={() => setSelectedMethod(opt.method_public_id)}
-                      className="size-4 shrink-0 accent-blue-600"
-                    />
-                    <span className="min-w-0 flex-1 text-sm font-medium text-neutral-950">{opt.method_name}</span>
-                    <span className="price-display-line shrink-0 text-end">{formatMoney(opt.price, locale)}</span>
-                  </label>
-                );
-              })}
-            </fieldset>
-          </section>
+            <div
+              className={cn(
+                shellCard,
+                "hidden max-lg:block shrink-0 p-5 sm:p-6",
+              )}
+            >
+              <dl className="space-y-2.5 text-sm">{orderTotalRows}</dl>
+            </div>
 
-          {errorText ? <p className="text-sm text-red-600">{errorText}</p> : null}
+            {errorText ? <p className="shrink-0 text-sm text-red-600">{errorText}</p> : null}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="flex h-12 w-full items-center justify-center rounded-lg bg-neutral-950 text-sm font-semibold text-white transition-colors hover:bg-neutral-900 disabled:opacity-50"
-          >
-            {t("continueToPayment")}
-          </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex h-12 w-full shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:opacity-50"
+            >
+              {t("continueToPayment")}
+            </button>
+          </div>
         </div>
       </form>
     </div>

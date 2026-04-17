@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { apiFetchJson } from "@/lib/client/api";
+import { getProductDetailCached } from "@/lib/client/product-detail-cache";
 import { formatMoney } from "@/lib/format";
 import { resolveStorefrontImageUrl, storefrontImageUnoptimized } from "@/lib/storefront-image";
 import { cn } from "@/lib/utils";
@@ -230,7 +230,7 @@ export function ProductCardVariantModal({ product, productName, variant = "defau
     setDetail(null);
     setLoadError(false);
     try {
-      const data = await apiFetchJson<ProductDetail>(`/products/${product.slug}`);
+      const data = await getProductDetailCached(product.slug);
       setDetail(data);
     } catch {
       setLoadError(true);
