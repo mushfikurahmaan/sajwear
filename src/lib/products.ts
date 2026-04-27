@@ -127,8 +127,12 @@ export async function getStorefrontProductSlugs(): Promise<string[]> {
 }
 
 export async function getStorefrontRelatedProducts(identifier: string): Promise<Product[]> {
-  const response = await getRelatedProducts(identifier);
-  return response.map(mapProduct);
+  try {
+    const response = await getRelatedProducts(identifier);
+    return response.map(mapProduct);
+  } catch {
+    return [];
+  }
 }
 
 export async function getStorefrontSearchProducts(q: string, page = 1): Promise<Product[]> {
