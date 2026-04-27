@@ -605,6 +605,14 @@ brands / price bounds that appear on **active** products are returned.
 
 Active, in-schedule banners for the tenant.
 
+Each banner includes **`images`**: an ordered array of every image the storefront should
+show (absolute URLs from this API), up to five. Gallery rows come first (`order`, then
+`id`); if the legacy main field (`Banner.image`) points at a **different** storage file
+than any gallery row, it is appended last. Duplicate storage keys are omitted.
+
+**`image_url`** is kept for backward compatibility: it is always the first entry in
+`images` when the list is non-empty, otherwise `null`.
+
 **Query params:**
 
 | Param | Type | Notes |
@@ -618,7 +626,19 @@ Active, in-schedule banners for the tenant.
   {
     "public_id": "ban_abc123",
     "title": "Summer Sale - 30% Off",
-    "image_url": "https://api.example.com/media/.../banner.jpg",
+    "image_url": "https://api.example.com/media/.../slide-1.jpg",
+    "images": [
+      {
+        "public_id": "bni_gal001",
+        "image_url": "https://api.example.com/media/.../slide-1.jpg",
+        "order": 0
+      },
+      {
+        "public_id": "bni_gal002",
+        "image_url": "https://api.example.com/media/.../slide-2.jpg",
+        "order": 1
+      }
+    ],
     "cta_text": "Shop Now",
     "cta_url": "https://mystore.com/sale",
     "order": 0,
@@ -635,7 +655,8 @@ Active, in-schedule banners for the tenant.
 |---|---|---|
 | `public_id` | string | Prefix: `ban_` |
 | `title` | string | Banner title |
-| `image_url` | string \| null | Banner image URL |
+| `image_url` | string \| null | First image URL; mirrors `images[0].image_url` or `null` |
+| `images` | object[] | Ordered slides; each object: `public_id` (`bni_` for gallery rows; if the only image is the legacy main with no gallery rows, `public_id` may be the banner’s `ban_…`), `image_url` (absolute), `order` (integer) |
 | `cta_text` | string | Button text |
 | `cta_url` | string | Button link (may be empty string) |
 | `order` | integer | Display order (sort ascending) |
@@ -650,6 +671,8 @@ Active, in-schedule banners for the tenant.
   the API.
 - A banner may appear in multiple slots.
 - Sort by `order` ascending.
+- For carousels or multi-image hero UI, iterate **`images`** (or fall back to a
+  single-image layout using **`image_url`** / `images[0]` only).
 
 **Errors:**
 - `400 { "slot": "Invalid placement slot selected" }` — unknown slot value.
@@ -2105,6 +2128,8 @@ await fetch(`${API}/support/tickets/`, {
   `payer_number` are always included in both the `POST /orders/` and
   `POST /orders/<id>/payment/` responses. They are **not** optional — frontends
   can rely on their presence.
+- Storefront `GET /api/v1/banners/` returns **`images`** (ordered list of absolute
+  URLs and metadata) plus **`image_url`** as the first image for older clients.
 - `POST /orders/initiate-checkout/` does **not** exist; the `InitiateCheckout`
   Meta event is fired by `tracker.js`.
 - `GET /api/v1/orders/<public_id>/` is an **admin-only** route (requires a

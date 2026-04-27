@@ -1,10 +1,10 @@
 {
   "metadata": {
-    "title": "Sarar Global Storefront",
+    "title": "Sajwear",
     "description": "Premium products crafted for everyday life."
   },
   "common": {
-    "brand": "Sarar Global",
+    "brand": "Sajwear",
     "currency": "USD",
     "language": "Language",
     "empty": "Nothing to show yet.",
@@ -13,11 +13,11 @@
   },
   "blog": {
     "metaTitle": "Blog",
-    "metaDescription": "Stories, guides, and updates from Sarar Global — sustainability, lifestyle, and how we serve customers across Bangladesh.",
+    "metaDescription": "Stories, guides, and updates from Sajwear — sustainability, lifestyle, and how we serve customers across Bangladesh.",
     "badge": "Blog",
     "heroTitle": "Discover our latest news",
     "heroIntro": "Ideas for better living, behind-the-scenes notes from our team, and practical guides — curated for our community.",
-    "sectionTitle": "Stories from Sarar Global",
+    "sectionTitle": "Stories from Sajwear",
     "featuredHeading": "Featured",
     "latestHeading": "Latest",
     "searchPlaceholder": "Search articles…",
@@ -107,7 +107,7 @@
     "categoryKitchen": "Kitchen essentials",
     "categoryTableware": "Tableware",
     "categoryHomeTextiles": "Home textiles",
-    "brandMark": "Sarar",
+    "brandMark": "Sajwear",
     "brandMarkAria": "Brand",
     "producerCodeLabel": "Manufacturer code",
     "skuSelectOptions": "Select options to view SKU",
@@ -133,7 +133,7 @@
   },
   "productCopy": {
     "royalSapphireKettle": {
-      "byline": "Curated by Sarar Global design studio",
+      "byline": "Curated by Sajwear design studio",
       "description": "A refined kettle collection piece with sapphire-toned accents and a balanced pour. Designed for daily rituals and quiet countertops, it pairs durable construction with a silhouette that feels at home in both modern kitchens and warm, traditional spaces.",
       "details": "Stainless steel body with heat-resistant handle. Boil-dry protection and wide opening for easy cleaning. Compatible with induction and conventional cooktops where applicable.",
       "dimensions": "Capacity 1.7 L. Overall height 25 cm, base diameter 16 cm. Cord length approximately 75 cm.",
@@ -368,7 +368,7 @@
     "addressLabel": "Address",
     "addressLine": "Dhaka, Bangladesh",
     "emailLabel": "Email",
-    "emailLine": "hello@sararglobal.com",
+    "emailLine": "hello@sajwear.com",
     "phoneLabel": "Phone",
     "customerAccount": "Account",
     "customerCart": "Cart",

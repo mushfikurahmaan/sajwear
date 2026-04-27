@@ -4,7 +4,7 @@ import { create } from "zustand";
 
 import type { CartItem, CartMap } from "@/types/cart";
 
-const CART_STORAGE_KEY = "sarar-global-cart";
+const CART_STORAGE_KEY = "sajwear-cart";
 
 /**
  * Where the user is acting: cart drawer / badge (`cart` → always `itemsMap`) vs checkout summary

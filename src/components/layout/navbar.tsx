@@ -10,7 +10,7 @@ import { MobileNavDrawer } from "@/components/layout/mobile-nav-drawer";
 import { PageContainer } from "@/components/layout/page-container";
 import { getStorefrontHeaderCategories, getStorefrontNotifications, getStorefrontStorePublic } from "@/lib/storefront";
 
-/** First word on top, remainder below (e.g. "Sarar Global" → Sarar / Global). */
+/** Stacked wordmark: first word on top, remainder below (e.g. "Acme Co" → Acme / Co). */
 function splitBrandName(name: string): { top: string; bottom: string } {
   const trimmed = name.trim();
   const m = trimmed.match(/^(\S+)\s+(.+)$/);

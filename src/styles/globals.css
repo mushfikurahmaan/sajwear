@@ -6,7 +6,7 @@
 
 /* English: letters use Poppins; numerals & numeric punctuation use Archivo (see .font-sans-en). */
 @font-face {
-  font-family: "Sarar English Figures";
+  font-family: "Sajwear English Figures";
   font-style: normal;
   font-weight: 400 700;
   font-display: swap;
@@ -16,7 +16,7 @@
 }
 
 @font-face {
-  font-family: "Sarar English Figures";
+  font-family: "Sajwear English Figures";
   font-style: normal;
   font-weight: 800;
   font-display: swap;
@@ -200,7 +200,7 @@
   }
 
   .font-sans-en {
-    font-family: "Sarar English Figures", var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+    font-family: "Sajwear English Figures", var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
   }
 }
 

@@ -149,10 +149,22 @@ export type PaperbaseCatalogFilters = {
 
 export type PaperbaseBannerSlot = "home_top" | "home_mid" | "home_bottom";
 
+/** Banner gallery row — see §7.9 `images[]` in STOREFRONT_INTEGRATION.md. */
+export type PaperbaseBannerImage = {
+  public_id: string;
+  image_url: string | null;
+  alt?: string | null;
+  order: number;
+  /** When present, tie-break after `order` (matches server gallery ordering). */
+  id?: number;
+};
+
 export type PaperbaseBanner = {
   public_id: string;
   title: string;
   image_url: string | null;
+  /** When present, ordered slides for the storefront (lowest `order` first). */
+  images?: PaperbaseBannerImage[];
   cta_text: string;
   cta_url: string;
   order: number;

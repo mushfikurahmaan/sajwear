@@ -43,7 +43,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   return {
-    title: `${product.name} · Sarar Global`,
+    title: `${product.name} · Sajwear`,
     description: product.description || product.name,
   };
 }

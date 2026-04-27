@@ -84,6 +84,7 @@ export type StorefrontHomeCategorySection = {
   name: string;
   slug: string;
   description: string;
+  image_url: string | null;
   products: Product[];
   showViewMore: boolean;
 };
@@ -102,6 +103,7 @@ export async function getStorefrontHomeCategorySections(): Promise<StorefrontHom
         name: categoryDisplayName(cat.name),
         slug: cat.slug,
         description: typeof cat.description === "string" ? cat.description.trim() : "",
+        image_url: cat.image_url,
         products,
         showViewMore,
       };
